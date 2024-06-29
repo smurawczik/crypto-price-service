@@ -16,31 +16,29 @@ export class AppService {
     private readonly httpService: HttpService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private cryptoCronService: CronService,
-  ) {
-    const bindedFetchFunction = this.fetchAndCacheBitcoinPrice.bind(this);
-    this.cryptoCronService.addCronJob('bitcoinPriceJob', bindedFetchFunction);
-  }
+  ) {}
 
-  async fetchAndCacheBitcoinPrice() {
+  async fetchAndCacheBitcoinPrice(coinId: string) {
     try {
       const response = await firstValueFrom(
         this.httpService.get(this.COINGECKO_API_URL, {
           params: {
-            ids: this.BITCOIN_ID,
+            ids: coinId,
             vs_currencies: this.CURRENCY,
           },
         }),
       );
+      this.logger.debug(`fetching crypto price for ${coinId}`);
 
       if (response.status !== 200) {
         throw new HttpException('API request failed', response.status);
       }
 
-      const price = response.data[this.BITCOIN_ID][this.CURRENCY];
-      await this.cacheManager.set('bitcoin_price', price, 6000);
+      const price = response.data[coinId][this.CURRENCY];
+      await this.cacheManager.set(this.getCacheKey(coinId), price, 6000);
 
       // Ajustar el intervalo del cron job basado en el número de solicitudes
-      this.cryptoCronService.adjustCronInterval();
+      this.cryptoCronService.adjustCronInterval(this.getCronkey(coinId));
 
       return price;
     } catch (error) {
@@ -48,16 +46,30 @@ export class AppService {
     }
   }
 
-  async getBitcoinPrice(): Promise<number> {
-    this.cryptoCronService.addRequestCount();
+  async getCryptoPrice(coinId: string): Promise<number> {
+    // lets create the cron job if it does not exist
+    if (!this.cryptoCronService.doesCronExist(this.getCronkey(coinId))) {
+      const bindedFetchFunction = this.fetchAndCacheBitcoinPrice.bind(
+        this,
+        coinId,
+      );
+      this.cryptoCronService.addCronJobIfNotExists(
+        this.getCronkey(coinId),
+        bindedFetchFunction,
+      );
+    }
 
-    const cachedPrice = await this.cacheManager.get<number>('bitcoin_price');
+    this.cryptoCronService.addRequestCount(this.getCronkey(coinId));
+
+    const cachedPrice = await this.cacheManager.get<number>(
+      this.getCacheKey(coinId),
+    );
     if (cachedPrice) {
       this.logger.debug(`returning cached price: ${cachedPrice}`);
       return cachedPrice;
     }
 
-    const price = await this.fetchAndCacheBitcoinPrice();
+    const price = await this.fetchAndCacheBitcoinPrice(coinId);
     this.logger.debug(`returning fetched price: ${price}`);
     return price;
   }
@@ -68,5 +80,13 @@ export class AppService {
     }
 
     return price * (1 + interestRate / 100);
+  }
+
+  private getCacheKey(coinId: string) {
+    return `${coinId}_price`;
+  }
+
+  private getCronkey(coinId: string) {
+    return `${coinId}_cron_job`;
   }
 }

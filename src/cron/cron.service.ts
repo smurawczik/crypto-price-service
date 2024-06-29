@@ -4,12 +4,12 @@ import { CronJob, CronTime } from 'cron';
 
 @Injectable()
 export class CronService {
-  private requestCount = 0;
-  private lastRequestCount = 0;
+  private requestCount = new Map<string, number>();
+  private lastRequestCount = new Map<string, number>();
   private interval = '*/60 * * * * *'; // cada 60 segundos
 
-  private BIG_LOAD = 500;
-  private MEDIUM_LOAD = 100;
+  private BIG_LOAD = 10;
+  private MEDIUM_LOAD = 5;
 
   private jobName: string = '';
 
@@ -17,12 +17,21 @@ export class CronService {
 
   constructor(private readonly schedulerRegistry: SchedulerRegistry) {}
 
-  public addRequestCount() {
-    this.requestCount++;
+  public doesCronExist(jobName: string) {
+    return this.schedulerRegistry.doesExist('cron', jobName);
   }
 
-  public addCronJob(jobName: string, cronFunction: () => unknown) {
+  public addRequestCount(jobName: string) {
+    const currentCount = this.requestCount.get(jobName) ?? 0;
+    this.requestCount.set(jobName, currentCount + 1);
+  }
+
+  public addCronJobIfNotExists(jobName: string, cronFunction: () => unknown) {
     this.jobName = jobName;
+    if (this.doesCronExist(jobName)) {
+      return;
+    }
+
     const job = new CronJob(this.interval, () => {
       cronFunction();
     });
@@ -36,9 +45,11 @@ export class CronService {
     job.start();
   }
 
-  public adjustCronInterval() {
-    const requestRate = this.requestCount - this.lastRequestCount;
-    this.lastRequestCount = this.requestCount;
+  public adjustCronInterval(jobName: string) {
+    const requestRate =
+      (this.requestCount.get(jobName) || 0) -
+      (this.lastRequestCount.get(jobName) || 0);
+    this.lastRequestCount.set(jobName, this.requestCount.get(jobName) || 0);
 
     let newInterval = this.interval;
     // Ajustar el intervalo basado en el número de solicitudes recibidas

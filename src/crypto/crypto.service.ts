@@ -67,9 +67,15 @@ export class CryptoService {
     'sats',
   ];
 
+  private SUPPORTED_COIN_IDS = ['bitcoin', 'ethereum'];
+
   public isCurrencyAccepted(currency: string) {
     return this.SUPPORTED_CURRENCIES.some(
       (supportedCurrency) => supportedCurrency === currency,
     );
+  }
+
+  public isCoinIdSupported(coinId: string) {
+    return this.SUPPORTED_COIN_IDS.some((_coinId) => _coinId === coinId);
   }
 }

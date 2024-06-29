@@ -9,25 +9,36 @@ export class AppController {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  @Post('price/:crypto')
+  @Post('price/:coinId')
   async getPriceWithInterest(
-    @Param('crypto') cryptoCurrency: string = 'btc',
+    @Param('coinId') coinId: string = 'bitcoin',
     @Body('interest_rate') interestRate?: number,
   ) {
-    if (!this.cryptoService.isCurrencyAccepted(cryptoCurrency)) {
-      return new HttpException('Invalid currency provided', 400);
+    if (!this.cryptoService.isCoinIdSupported(coinId)) {
+      return new HttpException(
+        'Invalid coin id provided, example of coin id: "bitcoin"',
+        400,
+      );
     }
 
-    const price = await this.appService.getBitcoinPrice();
+    const price = await this.appService.getCryptoPrice(coinId);
     const newPrice = this.appService.calculatePriceWithInterest(
       price,
       interestRate,
     );
 
+    if (!price) {
+      return new HttpException('too many requests', 429);
+    }
+
     return {
       original_price: price,
       interest_rate: interestRate ?? 'N/A',
       new_price: newPrice,
+      formatted_price: new Intl.NumberFormat('en', {
+        currency: 'USD',
+        style: 'currency',
+      }).format(newPrice),
     };
   }
 }
