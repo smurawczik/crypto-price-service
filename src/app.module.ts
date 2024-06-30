@@ -12,6 +12,7 @@ import { CryptoService } from './crypto/crypto.service';
     HttpModule,
     CacheModule.register({
       isGlobal: true,
+      ttl: 60,
     }),
     ScheduleModule.forRoot(),
   ],

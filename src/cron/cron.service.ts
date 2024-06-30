@@ -17,16 +17,16 @@ export class CronService {
 
   constructor(private readonly schedulerRegistry: SchedulerRegistry) {}
 
-  public doesCronExist(jobName: string) {
+  doesCronExist(jobName: string) {
     return this.schedulerRegistry.doesExist('cron', jobName);
   }
 
-  public addRequestCount(jobName: string) {
+  addRequestCount(jobName: string) {
     const currentCount = this.requestCount.get(jobName) ?? 0;
     this.requestCount.set(jobName, currentCount + 1);
   }
 
-  public addCronJobIfNotExists(jobName: string, cronFunction: () => unknown) {
+  addCronJobIfNotExists(jobName: string, cronFunction: () => unknown) {
     this.jobName = jobName;
     if (this.doesCronExist(jobName)) {
       return;
@@ -39,13 +39,7 @@ export class CronService {
     job.start();
   }
 
-  private updateCronJobInterval(newInterval: string) {
-    const job = this.schedulerRegistry.getCronJob(this.jobName);
-    job.setTime(new CronTime(newInterval));
-    job.start();
-  }
-
-  public adjustCronInterval(jobName: string) {
+  adjustCronInterval(jobName: string) {
     const requestRate =
       (this.requestCount.get(jobName) || 0) -
       (this.lastRequestCount.get(jobName) || 0);
@@ -66,5 +60,11 @@ export class CronService {
       this.updateCronJobInterval(this.interval);
       this.logger.verbose(`adjusting interval to run job to: ${this.interval}`);
     }
+  }
+
+  private updateCronJobInterval(newInterval: string) {
+    const job = this.schedulerRegistry.getCronJob(this.jobName);
+    job.setTime(new CronTime(newInterval));
+    job.start();
   }
 }

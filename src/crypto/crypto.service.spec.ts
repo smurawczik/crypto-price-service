@@ -15,4 +15,12 @@ describe('CryptoService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  it.each([
+    ['bitcoin', true],
+    ['ethereum', true],
+    ['another_coin', false],
+  ])(`when verifying %s return %b`, (coin, expected) => {
+    expect(service.isCoinIdSupported(coin)).toEqual(expected);
+  });
 });
